@@ -39,11 +39,8 @@ class GeoAxes(Axes):
             self._round_to = round_to
 
         def __call__(self, x, pos=None):
-            degrees = np.round(np.rad2deg(x) / self._round_to) * self._round_to
-            if rcParams['text.usetex'] and not rcParams['text.latex.unicode']:
-                return r"$%0.0f^\circ$" % degrees
-            else:
-                return "%0.0f\N{DEGREE SIGN}" % degrees
+            degrees = round(np.rad2deg(x) / self._round_to) * self._round_to
+            return f"{degrees:0.0f}\N{DEGREE SIGN}"
 
     RESOLUTION = 75
 
@@ -174,8 +171,8 @@ class GeoAxes(Axes):
 
     def _get_affine_transform(self):
         transform = self._get_core_transform(1)
-        xscale, _ = transform.transform_point((np.pi, 0))
-        _, yscale = transform.transform_point((0, np.pi / 2.0))
+        xscale, _ = transform.transform((np.pi, 0))
+        _, yscale = transform.transform((0, np.pi/2))
         return Affine2D() \
             .scale(0.5 / xscale, 0.5 / yscale) \
             .translate(0.5, 0.5)
@@ -260,9 +257,8 @@ class GeoAxes(Axes):
     # set_xlim and set_ylim to ignore any input.  This also applies to
     # interactive panning and zooming in the GUI interfaces.
     def set_xlim(self, *args, **kwargs):
-        raise TypeError("It is not possible to change axes limits "
-                        "for geographic projections. Please consider "
-                        "using Basemap or Cartopy.")
+        raise TypeError("Changing axes limits of a geographic projection is "
+                        "not supported.  Please consider using Cartopy.")
 
     set_ylim = set_xlim
 
@@ -378,12 +374,8 @@ class HammerAxes(GeoAxes):
     name = 'custom_hammer'
 
     class HammerTransform(Transform):
-        """
-        The base Hammer transform.
-        """
-        input_dims = 2
-        output_dims = 2
-        is_separable = False
+        """The base Hammer transform."""
+        input_dims = output_dims = 2
 
         def __init__(self, resolution):
             """
@@ -416,9 +408,7 @@ class HammerAxes(GeoAxes):
             return HammerAxes.InvertedHammerTransform(self._resolution)
 
     class InvertedHammerTransform(Transform):
-        input_dims = 2
-        output_dims = 2
-        is_separable = False
+        input_dims = output_dims = 2
 
         def __init__(self, resolution):
             Transform.__init__(self)

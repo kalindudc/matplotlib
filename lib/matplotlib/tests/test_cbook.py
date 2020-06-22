@@ -1,7 +1,8 @@
 import itertools
 import pickle
+import re
+
 from weakref import ref
-import warnings
 from unittest.mock import patch, Mock
 
 from datetime import datetime
@@ -13,60 +14,44 @@ import pytest
 
 import matplotlib.cbook as cbook
 import matplotlib.colors as mcolors
-from matplotlib.cbook import delete_masked_points as dmp
+from matplotlib.cbook import MatplotlibDeprecationWarning, delete_masked_points
 
 
-def test_is_hashable():
-    s = 'string'
-    assert cbook.is_hashable(s)
-
-    lst = ['list', 'of', 'stings']
-    assert not cbook.is_hashable(lst)
-
-
-class Test_delete_masked_points(object):
-    def setup_method(self):
-        self.mask1 = [False, False, True, True, False, False]
-        self.arr0 = np.arange(1.0, 7.0)
-        self.arr1 = [1, 2, 3, np.nan, np.nan, 6]
-        self.arr2 = np.array(self.arr1)
-        self.arr3 = np.ma.array(self.arr2, mask=self.mask1)
-        self.arr_s = ['a', 'b', 'c', 'd', 'e', 'f']
-        self.arr_s2 = np.array(self.arr_s)
-        self.arr_dt = [datetime(2008, 1, 1), datetime(2008, 1, 2),
-                       datetime(2008, 1, 3), datetime(2008, 1, 4),
-                       datetime(2008, 1, 5), datetime(2008, 1, 6)]
-        self.arr_dt2 = np.array(self.arr_dt)
-        self.arr_colors = ['r', 'g', 'b', 'c', 'm', 'y']
-        self.arr_rgba = mcolors.to_rgba_array(self.arr_colors)
-
+class Test_delete_masked_points:
     def test_bad_first_arg(self):
         with pytest.raises(ValueError):
-            dmp('a string', self.arr0)
+            delete_masked_points('a string', np.arange(1.0, 7.0))
 
     def test_string_seq(self):
-        actual = dmp(self.arr_s, self.arr1)
+        a1 = ['a', 'b', 'c', 'd', 'e', 'f']
+        a2 = [1, 2, 3, np.nan, np.nan, 6]
+        result1, result2 = delete_masked_points(a1, a2)
         ind = [0, 1, 2, 5]
-        expected = (self.arr_s2[ind], self.arr2[ind])
-        assert_array_equal(actual[0], expected[0])
-        assert_array_equal(actual[1], expected[1])
+        assert_array_equal(result1, np.array(a1)[ind])
+        assert_array_equal(result2, np.array(a2)[ind])
 
     def test_datetime(self):
-        actual = dmp(self.arr_dt, self.arr3)
+        dates = [datetime(2008, 1, 1), datetime(2008, 1, 2),
+                 datetime(2008, 1, 3), datetime(2008, 1, 4),
+                 datetime(2008, 1, 5), datetime(2008, 1, 6)]
+        a_masked = np.ma.array([1, 2, 3, np.nan, np.nan, 6],
+                               mask=[False, False, True, True, False, False])
+        actual = delete_masked_points(dates, a_masked)
         ind = [0, 1, 5]
-        expected = (self.arr_dt2[ind], self.arr3[ind].compressed())
-        assert_array_equal(actual[0], expected[0])
-        assert_array_equal(actual[1], expected[1])
+        assert_array_equal(actual[0], np.array(dates)[ind])
+        assert_array_equal(actual[1], a_masked[ind].compressed())
 
     def test_rgba(self):
-        actual = dmp(self.arr3, self.arr_rgba)
+        a_masked = np.ma.array([1, 2, 3, np.nan, np.nan, 6],
+                               mask=[False, False, True, True, False, False])
+        a_rgba = mcolors.to_rgba_array(['r', 'g', 'b', 'c', 'm', 'y'])
+        actual = delete_masked_points(a_masked, a_rgba)
         ind = [0, 1, 5]
-        expected = (self.arr3[ind].compressed(), self.arr_rgba[ind])
-        assert_array_equal(actual[0], expected[0])
-        assert_array_equal(actual[1], expected[1])
+        assert_array_equal(actual[0], a_masked[ind].compressed())
+        assert_array_equal(actual[1], a_rgba[ind])
 
 
-class Test_boxplot_stats(object):
+class Test_boxplot_stats:
     def setup(self):
         np.random.seed(937)
         self.nrows = 37
@@ -146,7 +131,7 @@ class Test_boxplot_stats(object):
             assert_array_almost_equal(res[key], value)
 
     def test_results_whiskers_range(self):
-        results = cbook.boxplot_stats(self.data, whis='range')
+        results = cbook.boxplot_stats(self.data, whis=[0, 100])
         res = results[0]
         for key, value in self.known_res_range.items():
             assert_array_almost_equal(res[key], value)
@@ -171,12 +156,12 @@ class Test_boxplot_stats(object):
     def test_label_error(self):
         labels = [1, 2]
         with pytest.raises(ValueError):
-            results = cbook.boxplot_stats(self.data, labels=labels)
+            cbook.boxplot_stats(self.data, labels=labels)
 
     def test_bad_dims(self):
         data = np.random.normal(size=(34, 34, 34))
         with pytest.raises(ValueError):
-            results = cbook.boxplot_stats(data)
+            cbook.boxplot_stats(data)
 
     def test_boxplot_stats_autorange_false(self):
         x = np.zeros(shape=140)
@@ -193,7 +178,7 @@ class Test_boxplot_stats(object):
         assert_array_almost_equal(bstats_true[0]['fliers'], [])
 
 
-class Test_callback_registry(object):
+class Test_callback_registry:
     def setup(self):
         self.signal = 'test'
         self.callbacks = cbook.CallbackRegistry()
@@ -241,6 +226,18 @@ class Test_callback_registry(object):
                        "callbacks")
 
 
+def test_callbackregistry_default_exception_handler(monkeypatch):
+    cb = cbook.CallbackRegistry()
+    cb.connect("foo", lambda: None)
+    monkeypatch.setattr(
+        cbook, "_get_running_interactive_framework", lambda: None)
+    with pytest.raises(TypeError):
+        cb.process("foo", "argument mismatch")
+    monkeypatch.setattr(
+        cbook, "_get_running_interactive_framework", lambda: "not-none")
+    cb.process("foo", "argument mismatch")  # No error in that case.
+
+
 def raising_cb_reg(func):
     class TestException(Exception):
         pass
@@ -248,14 +245,13 @@ def raising_cb_reg(func):
     def raising_function():
         raise RuntimeError
 
+    def raising_function_VE():
+        raise ValueError
+
     def transformer(excp):
         if isinstance(excp, RuntimeError):
             raise TestException
         raise excp
-
-    # default behavior
-    cb = cbook.CallbackRegistry()
-    cb.connect('foo', raising_function)
 
     # old default
     cb_old = cbook.CallbackRegistry(exception_handler=None)
@@ -265,18 +261,21 @@ def raising_cb_reg(func):
     cb_filt = cbook.CallbackRegistry(exception_handler=transformer)
     cb_filt.connect('foo', raising_function)
 
+    # filter
+    cb_filt_pass = cbook.CallbackRegistry(exception_handler=transformer)
+    cb_filt_pass.connect('foo', raising_function_VE)
+
     return pytest.mark.parametrize('cb, excp',
-                                   [[cb, None],
-                                    [cb_old, RuntimeError],
-                                    [cb_filt, TestException]])(func)
+                                   [[cb_old, RuntimeError],
+                                    [cb_filt, TestException],
+                                    [cb_filt_pass, ValueError]])(func)
 
 
 @raising_cb_reg
-def test_callbackregistry_process_exception(cb, excp):
-    if excp is not None:
-        with pytest.raises(excp):
-            cb.process('foo')
-    else:
+def test_callbackregistry_custom_exception_handler(monkeypatch, cb, excp):
+    monkeypatch.setattr(
+        cbook, "_get_running_interactive_framework", lambda: None)
+    with pytest.raises(excp):
         cb.process('foo')
 
 
@@ -295,16 +294,12 @@ def test_sanitize_sequence():
 fail_mapping = (
     ({'a': 1}, {'forbidden': ('a')}),
     ({'a': 1}, {'required': ('b')}),
-    ({'a': 1, 'b': 2}, {'required': ('a'), 'allowed': ()})
-)
-
-warn_passing_mapping = (
-    ({'a': 1, 'b': 2}, {'a': 1}, {'alias_mapping': {'a': ['b']}}, 1),
-    ({'a': 1, 'b': 2}, {'a': 1},
-     {'alias_mapping': {'a': ['b']}, 'allowed': ('a',)}, 1),
-    ({'a': 1, 'b': 2}, {'a': 2}, {'alias_mapping': {'a': ['a', 'b']}}, 1),
-    ({'a': 1, 'b': 2, 'c': 3}, {'a': 1, 'c': 3},
-     {'alias_mapping': {'a': ['b']}, 'required': ('a', )}, 1),
+    ({'a': 1, 'b': 2}, {'required': ('a'), 'allowed': ()}),
+    ({'a': 1, 'b': 2}, {'alias_mapping': {'a': ['b']}}),
+    ({'a': 1, 'b': 2}, {'alias_mapping': {'a': ['b']}, 'allowed': ('a',)}),
+    ({'a': 1, 'b': 2}, {'alias_mapping': {'a': ['a', 'b']}}),
+    ({'a': 1, 'b': 2, 'c': 3},
+     {'alias_mapping': {'a': ['b']}, 'required': ('a', )}),
 )
 
 pass_mapping = (
@@ -327,35 +322,24 @@ pass_mapping = (
 
 @pytest.mark.parametrize('inp, kwargs_to_norm', fail_mapping)
 def test_normalize_kwargs_fail(inp, kwargs_to_norm):
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError), \
+         cbook._suppress_matplotlib_deprecation_warning():
         cbook.normalize_kwargs(inp, **kwargs_to_norm)
-
-
-@pytest.mark.parametrize('inp, expected, kwargs_to_norm, warn_count',
-                         warn_passing_mapping)
-def test_normalize_kwargs_warn(inp, expected, kwargs_to_norm, warn_count):
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        assert expected == cbook.normalize_kwargs(inp, **kwargs_to_norm)
-        assert len(w) == warn_count
 
 
 @pytest.mark.parametrize('inp, expected, kwargs_to_norm',
                          pass_mapping)
 def test_normalize_kwargs_pass(inp, expected, kwargs_to_norm):
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    with cbook._suppress_matplotlib_deprecation_warning():
+        # No other warning should be emitted.
         assert expected == cbook.normalize_kwargs(inp, **kwargs_to_norm)
-        assert len(w) == 0
 
 
 def test_warn_external_frame_embedded_python():
     with patch.object(cbook, "sys") as mock_sys:
         mock_sys._getframe = Mock(return_value=None)
-        with warnings.catch_warnings(record=True) as w:
+        with pytest.warns(UserWarning, match=r"\Adummy\Z"):
             cbook._warn_external("dummy")
-    assert len(w) == 1
-    assert str(w[0].message) == "dummy"
 
 
 def test_to_prestep():
@@ -365,9 +349,9 @@ def test_to_prestep():
 
     xs, y1s, y2s = cbook.pts_to_prestep(x, y1, y2)
 
-    x_target = np.asarray([0, 0, 1, 1, 2, 2, 3], dtype='float')
-    y1_target = np.asarray([0, 1, 1, 2, 2, 3, 3], dtype='float')
-    y2_target = np.asarray([3, 2, 2, 1, 1, 0, 0], dtype='float')
+    x_target = np.asarray([0, 0, 1, 1, 2, 2, 3], dtype=float)
+    y1_target = np.asarray([0, 1, 1, 2, 2, 3, 3], dtype=float)
+    y2_target = np.asarray([3, 2, 2, 1, 1, 0, 0], dtype=float)
 
     assert_array_equal(x_target, xs)
     assert_array_equal(y1_target, y1s)
@@ -390,9 +374,9 @@ def test_to_poststep():
 
     xs, y1s, y2s = cbook.pts_to_poststep(x, y1, y2)
 
-    x_target = np.asarray([0, 1, 1, 2, 2, 3, 3], dtype='float')
-    y1_target = np.asarray([0, 0, 1, 1, 2, 2, 3], dtype='float')
-    y2_target = np.asarray([3, 3, 2, 2, 1, 1, 0], dtype='float')
+    x_target = np.asarray([0, 1, 1, 2, 2, 3, 3], dtype=float)
+    y1_target = np.asarray([0, 0, 1, 1, 2, 2, 3], dtype=float)
+    y2_target = np.asarray([3, 3, 2, 2, 1, 1, 0], dtype=float)
 
     assert_array_equal(x_target, xs)
     assert_array_equal(y1_target, y1s)
@@ -415,9 +399,9 @@ def test_to_midstep():
 
     xs, y1s, y2s = cbook.pts_to_midstep(x, y1, y2)
 
-    x_target = np.asarray([0, .5, .5, 1.5, 1.5, 2.5, 2.5, 3], dtype='float')
-    y1_target = np.asarray([0, 0, 1, 1, 2, 2, 3, 3], dtype='float')
-    y2_target = np.asarray([3, 3, 2, 2, 1, 1, 0, 0], dtype='float')
+    x_target = np.asarray([0, .5, .5, 1.5, 1.5, 2.5, 2.5, 3], dtype=float)
+    y1_target = np.asarray([0, 0, 1, 1, 2, 2, 3, 3], dtype=float)
+    y2_target = np.asarray([3, 3, 2, 2, 1, 1, 0, 0], dtype=float)
 
     assert_array_equal(x_target, xs)
     assert_array_equal(y1_target, y1s)
@@ -444,7 +428,7 @@ def test_step_fails(args):
 
 
 def test_grouper():
-    class dummy():
+    class dummy:
         pass
     a, b, c, d, e = objs = [dummy() for j in range(5)]
     g = cbook.Grouper()
@@ -464,7 +448,7 @@ def test_grouper():
 
 
 def test_grouper_private():
-    class dummy():
+    class dummy:
         pass
     objs = [dummy() for j in range(5)]
     g = cbook.Grouper()
@@ -493,8 +477,10 @@ def test_flatiter():
 
 
 def test_reshape2d():
-    class dummy():
+
+    class dummy:
         pass
+
     xnew = cbook._reshape_2D([], 'x')
     assert np.shape(xnew) == (1, 0)
 
@@ -515,6 +501,41 @@ def test_reshape2d():
     x = np.random.rand(3, 5)
     xnew = cbook._reshape_2D(x, 'x')
     assert np.shape(xnew) == (5, 3)
+
+    # Now test with a list of lists with different lengths, which means the
+    # array will internally be converted to a 1D object array of lists
+    x = [[1, 2, 3], [3, 4], [2]]
+    xnew = cbook._reshape_2D(x, 'x')
+    assert isinstance(xnew, list)
+    assert isinstance(xnew[0], np.ndarray) and xnew[0].shape == (3,)
+    assert isinstance(xnew[1], np.ndarray) and xnew[1].shape == (2,)
+    assert isinstance(xnew[2], np.ndarray) and xnew[2].shape == (1,)
+
+    # We now need to make sure that this works correctly for Numpy subclasses
+    # where iterating over items can return subclasses too, which may be
+    # iterable even if they are scalars. To emulate this, we make a Numpy
+    # array subclass that returns Numpy 'scalars' when iterating or accessing
+    # values, and these are technically iterable if checking for example
+    # isinstance(x, collections.abc.Iterable).
+
+    class ArraySubclass(np.ndarray):
+
+        def __iter__(self):
+            for value in super().__iter__():
+                yield np.array(value)
+
+        def __getitem__(self, item):
+            return np.array(super().__getitem__(item))
+
+    v = np.arange(10, dtype=float)
+    x = ArraySubclass((10,), dtype=float, buffer=v.data)
+
+    xnew = cbook._reshape_2D(x, 'x')
+
+    # We check here that the array wasn't split up into many individual
+    # ArraySubclass, which is what used to happen due to a bug in _reshape_2D
+    assert len(xnew) == 1
+    assert isinstance(xnew[0], ArraySubclass)
 
 
 def test_contiguous_regions():
@@ -545,3 +566,170 @@ def test_safe_first_element_pandas_series(pd):
     s = pd.Series(range(5), index=range(10, 15))
     actual = cbook.safe_first_element(s)
     assert actual == 0
+
+
+def test_delete_parameter():
+    @cbook._delete_parameter("3.0", "foo")
+    def func1(foo=None):
+        pass
+
+    @cbook._delete_parameter("3.0", "foo")
+    def func2(**kwargs):
+        pass
+
+    for func in [func1, func2]:
+        func()  # No warning.
+        with pytest.warns(MatplotlibDeprecationWarning):
+            func(foo="bar")
+
+    def pyplot_wrapper(foo=cbook.deprecation._deprecated_parameter):
+        func1(foo)
+
+    pyplot_wrapper()  # No warning.
+    with pytest.warns(MatplotlibDeprecationWarning):
+        func(foo="bar")
+
+
+def test_make_keyword_only():
+    @cbook._make_keyword_only("3.0", "arg")
+    def func(pre, arg, post=None):
+        pass
+
+    func(1, arg=2)  # Check that no warning is emitted.
+
+    with pytest.warns(MatplotlibDeprecationWarning):
+        func(1, 2)
+    with pytest.warns(MatplotlibDeprecationWarning):
+        func(1, 2, 3)
+
+
+def test_warn_external(recwarn):
+    cbook._warn_external("oops")
+    assert len(recwarn) == 1
+    assert recwarn[0].filename == __file__
+
+
+def test_array_patch_perimeters():
+    # This compares the old implementation as a reference for the
+    # vectorized one.
+    def check(x, rstride, cstride):
+        rows, cols = x.shape
+        row_inds = [*range(0, rows-1, rstride), rows-1]
+        col_inds = [*range(0, cols-1, cstride), cols-1]
+        polys = []
+        for rs, rs_next in zip(row_inds[:-1], row_inds[1:]):
+            for cs, cs_next in zip(col_inds[:-1], col_inds[1:]):
+                # +1 ensures we share edges between polygons
+                ps = cbook._array_perimeter(x[rs:rs_next+1, cs:cs_next+1]).T
+                polys.append(ps)
+        polys = np.asarray(polys)
+        assert np.array_equal(polys,
+                              cbook._array_patch_perimeters(
+                                  x, rstride=rstride, cstride=cstride))
+
+    def divisors(n):
+        return [i for i in range(1, n + 1) if n % i == 0]
+
+    for rows, cols in [(5, 5), (7, 14), (13, 9)]:
+        x = np.arange(rows * cols).reshape(rows, cols)
+        for rstride, cstride in itertools.product(divisors(rows - 1),
+                                                  divisors(cols - 1)):
+            check(x, rstride=rstride, cstride=cstride)
+
+
+@pytest.mark.parametrize('target,test_shape',
+                         [((None, ), (1, 3)),
+                          ((None, 3), (1,)),
+                          ((None, 3), (1, 2)),
+                          ((1, 5), (1, 9)),
+                          ((None, 2, None), (1, 3, 1))
+                          ])
+def test_check_shape(target, test_shape):
+    error_pattern = (f"^'aardvark' must be {len(target)}D.*" +
+                     re.escape(f'has shape {test_shape}'))
+    data = np.zeros(test_shape)
+    with pytest.raises(ValueError,
+                       match=error_pattern):
+        cbook._check_shape(target, aardvark=data)
+
+
+def test_setattr_cm():
+    class A:
+
+        cls_level = object()
+        override = object()
+        def __init__(self):
+            self.aardvark = 'aardvark'
+            self.override = 'override'
+            self._p = 'p'
+
+        def meth(self):
+            ...
+
+        @classmethod
+        def classy(klass):
+            ...
+
+        @staticmethod
+        def static():
+            ...
+
+        @property
+        def prop(self):
+            return self._p
+
+        @prop.setter
+        def prop(self, val):
+            self._p = val
+
+    class B(A):
+        ...
+
+    other = A()
+
+    def verify_pre_post_state(obj):
+        # When you access a Python method the function is bound
+        # to the object at access time so you get a new instance
+        # of MethodType every time.
+        #
+        # https://docs.python.org/3/howto/descriptor.html#functions-and-methods
+        assert obj.meth is not obj.meth
+        # normal attribute should give you back the same instance every time
+        assert obj.aardvark is obj.aardvark
+        assert a.aardvark == 'aardvark'
+        # and our property happens to give the same instance every time
+        assert obj.prop is obj.prop
+        assert obj.cls_level is A.cls_level
+        assert obj.override == 'override'
+        assert not hasattr(obj, 'extra')
+        assert obj.prop == 'p'
+        assert obj.monkey == other.meth
+        assert obj.cls_level is A.cls_level
+        assert 'cls_level' not in obj.__dict__
+        assert 'classy' not in obj.__dict__
+        assert 'static' not in obj.__dict__
+
+    a = B()
+
+    a.monkey = other.meth
+    verify_pre_post_state(a)
+    with cbook._setattr_cm(
+            a, prop='squirrel',
+            aardvark='moose', meth=lambda: None,
+            override='boo', extra='extra',
+            monkey=lambda: None, cls_level='bob',
+            classy='classy', static='static'):
+        # because we have set a lambda, it is normal attribute access
+        # and the same every time
+        assert a.meth is a.meth
+        assert a.aardvark is a.aardvark
+        assert a.aardvark == 'moose'
+        assert a.override == 'boo'
+        assert a.extra == 'extra'
+        assert a.prop == 'squirrel'
+        assert a.monkey != other.meth
+        assert a.cls_level == 'bob'
+        assert a.classy == 'classy'
+        assert a.static == 'static'
+
+    verify_pre_post_state(a)

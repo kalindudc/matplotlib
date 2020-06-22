@@ -1,33 +1,32 @@
-'''
+"""
 ================
 Lorenz Attractor
 ================
 
-This is an example of plotting Edward Lorenz's 1963 `"Deterministic
-Nonperiodic Flow"
-<http://journals.ametsoc.org/doi/abs/10.1175/1520-0469%281963%29020%3C0130%3ADNF%3E2.0.CO%3B2>`_
-in a 3-dimensional space using mplot3d.
+This is an example of plotting Edward Lorenz's 1963 `"Deterministic Nonperiodic
+Flow"`_ in a 3-dimensional space using mplot3d.
 
-Note: Because this is a simple non-linear ODE, it would be more easily
-      done using SciPy's ode solver, but this approach depends only
-      upon NumPy.
-'''
+.. _"Deterministic Nonperiodic Flow":
+   http://journals.ametsoc.org/doi/abs/10.1175/1520-0469%281963%29020%3C0130%3ADNF%3E2.0.CO%3B2
+
+.. note::
+   Because this is a simple non-linear ODE, it would be more easily done using
+   SciPy's ODE solver, but this approach depends only upon NumPy.
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
-# This import registers the 3D projection, but is otherwise unused.
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 
 
 def lorenz(x, y, z, s=10, r=28, b=2.667):
-    '''
+    """
     Given:
        x, y, z: a point of interest in three dimensional space
        s, r, b: parameters defining the lorenz attractor
     Returns:
        x_dot, y_dot, z_dot: values of the lorenz attractor's partial
            derivatives at the point x, y, z
-    '''
+    """
     x_dot = s*(y - x)
     y_dot = r*x - y - x*z
     z_dot = x*y - b*z

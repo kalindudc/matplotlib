@@ -97,7 +97,7 @@ argument to add_axes or add_subplot.  Thanks Ben Root.
    :align: center
    :scale: 50
 
-   Whats New 1 Subplot3d
+   What's New 1 Subplot3d
 
 tick_params
 ------------
@@ -128,7 +128,7 @@ Much improved software carpentry
 
 The matplotlib trunk is probably in as good a shape as it has ever
 been, thanks to improved `software carpentry
-<http://software-carpentry.org/>`__.  We now have a `buildbot
+<https://software-carpentry.org/>`__.  We now have a `buildbot
 <https://buildbot.net>`__ which runs a suite of `nose
 <http://code.google.com/p/python-nose/>`__ regression tests on every
 svn commit, auto-generating a set of images and comparing them against
@@ -142,8 +142,6 @@ developers for the heavy lifting.
 Bugfix marathon
 ----------------
 
-Eric Firing went on a bug fixing and closing marathon, closing over
-100 bugs on the `bug tracker
-<http://sourceforge.net/tracker/?group_id=80706&atid=560720>`__ with
-help from Jae-Joon Lee, Michael Droettboom, Christoph Gohlke and
-Michiel de Hoon.
+Eric Firing went on a bug fixing and closing marathon, closing over 100 bugs on
+the (now-closed) SourceForge bug tracker with help from Jae-Joon Lee, Michael
+Droettboom, Christoph Gohlke and Michiel de Hoon.

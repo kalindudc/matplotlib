@@ -26,10 +26,8 @@ mathtext_parser = MathTextParser("Bitmap")
 
 
 def mathtext_to_wxbitmap(s):
-    ftimage, depth = mathtext_parser.parse(s, 150)
-    return wx.Bitmap.FromBufferRGBA(
-        ftimage.get_width(), ftimage.get_height(),
-        ftimage.as_rgba_str())
+    rgba, depth = mathtext_parser.to_rgba(s, dpi=150, fontsize=10)
+    return wx.Bitmap.FromBufferRGBA(rgba.shape[1], rgba.shape[0], rgba)
 ############################################################
 
 functions = [
@@ -60,7 +58,8 @@ class CanvasFrame(wx.Frame):
 
         # File Menu
         menu = wx.Menu()
-        m_exit = menu.Append(wx.ID_EXIT, "E&xit\tAlt-X", "Exit this simple sample")
+        m_exit = menu.Append(
+            wx.ID_EXIT, "E&xit\tAlt-X", "Exit this simple sample")
         menuBar.Append(menu, "&File")
         self.Bind(wx.EVT_MENU, self.OnClose, m_exit)
 
@@ -124,5 +123,7 @@ class MyApp(wx.App):
         frame.Show(True)
         return True
 
-app = MyApp()
-app.MainLoop()
+
+if __name__ == "__main__":
+    app = MyApp()
+    app.MainLoop()

@@ -1,4 +1,0 @@
-Deprecations
-````````````
-
-``Text.is_math_text`` is deprecated.

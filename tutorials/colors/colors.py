@@ -5,13 +5,21 @@ Specifying Colors
 
 Matplotlib recognizes the following formats to specify a color:
 
-* an RGB or RGBA (red, green, blue, alpha) tuple of float values in ``[0, 1]``
-  (e.g., ``(0.1, 0.2, 0.5)`` or ``(0.1, 0.2, 0.5, 0.3)``);
+* an RGB or RGBA (red, green, blue, alpha) tuple of float values in closed
+  interval ``[0, 1]`` (e.g., ``(0.1, 0.2, 0.5)`` or ``(0.1, 0.2, 0.5, 0.3)``);
 * a hex RGB or RGBA string (e.g., ``'#0f0f0f'`` or ``'#0f0f0f80'``;
+  case-insensitive);
+* a shorthand hex RGB or RGBA string, equivalent to the hex RGB or RGBA
+  string obtained by duplicating each character, (e.g., ``'#abc'``, equivalent
+  to ``'#aabbcc'``, or ``'#abcd'``, equivalent to ``'#aabbccdd'``;
   case-insensitive);
 * a string representation of a float value in ``[0, 1]`` inclusive for gray
   level (e.g., ``'0.5'``);
-* one of ``{'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'}``;
+* one of the characters ``{'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'}``, which
+  are short-hand notations for shades of blue, green, red, cyan, magenta,
+  yellow, black, and white. Note that the colors ``'g', 'c', 'm', 'y'`` do not
+  coincide with the X11/CSS4 colors. Their particular shades were chosen for
+  better visibility of colored lines against typical backgrounds.
 * a X11/CSS4 color name (case-insensitive);
 * a name from the `xkcd color survey`_, prefixed with ``'xkcd:'`` (e.g.,
   ``'xkcd:sky blue'``; case insensitive);
@@ -19,10 +27,10 @@ Matplotlib recognizes the following formats to specify a color:
   color cycle): ``{'tab:blue', 'tab:orange', 'tab:green', 'tab:red',
   'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan'}``
   (case-insensitive);
-* a "CN" color spec, i.e. `'C'` followed by a number, which is an index into
-  the default property cycle (``matplotlib.rcParams['axes.prop_cycle']``); the
-  indexing is intended to occur at rendering time, and defaults to black if the
-  cycle does not include color.
+* a "CN" color spec, i.e. ``'C'`` followed by a number, which is an index into
+  the default property cycle (:rc:`axes.prop_cycle`); the indexing is intended
+  to occur at rendering time, and defaults to black if the cycle does not
+  include color.
 
 .. _xkcd color survey: https://xkcd.com/color/rgb/
 
@@ -75,7 +83,7 @@ demo('seaborn')
 
 ###############################################################################
 # will use the first color for the title and then plot using the second
-# and third colors of each style's ``mpl.rcParams['axes.prop_cycle']``.
+# and third colors of each style's :rc:`axes.prop_cycle`.
 #
 #
 # .. _xkcd-colors:

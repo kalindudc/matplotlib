@@ -19,7 +19,7 @@ ax.set_xlabel('xlabel')
 ax.set_ylabel('ylabel')
 
 ax.text(3, 8, 'boxed italics text in data coords', style='italic',
-        bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
+        bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
 
 ax.text(2, 6, r'an equation: $E=mc^2$', fontsize=15)
 
@@ -35,7 +35,7 @@ ax.plot([2], [1], 'o')
 ax.annotate('annotate', xy=(2, 1), xytext=(3, 4),
             arrowprops=dict(facecolor='black', shrink=0.05))
 
-ax.axis([0, 10, 0, 10])
+ax.set(xlim=(0, 10), ylim=(0, 10))
 
 plt.show()
 

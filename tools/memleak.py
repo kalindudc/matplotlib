@@ -6,8 +6,8 @@ import tracemalloc
 
 try:
     import psutil
-except ImportError:
-    raise ImportError("This script requires psutil")
+except ImportError as err:
+    raise ImportError("This script requires psutil") from err
 
 import numpy as np
 
@@ -77,7 +77,7 @@ def run_memleak_test(bench, iterations, report):
     fig.savefig(report, format='pdf')
 
 
-class MemleakTest(object):
+class MemleakTest:
     def __init__(self, empty):
         self.empty = empty
 

@@ -17,6 +17,8 @@ import sys
 import matplotlib
 import sphinx
 
+from datetime import datetime
+
 # If your extensions are in another directory, add it here. If the directory
 # is relative to the documentation root, use os.path.abspath to make it
 # absolute, like shown here.
@@ -26,6 +28,10 @@ sys.path.append('.')
 # General configuration
 # ---------------------
 
+# Strip backslahes in function's signature
+# To be removed when numpydoc > 0.9.x
+strip_signature_backslash = True
+
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
@@ -34,6 +40,7 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.inheritance_diagram',
     'sphinx.ext.intersphinx',
+    'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'IPython.sphinxext.ipython_console_highlighting',
     'IPython.sphinxext.ipython_directive',
@@ -44,6 +51,7 @@ extensions = [
     'sphinxext.custom_roles',
     'sphinxext.github',
     'sphinxext.math_symbol_table',
+    'sphinxext.missing_references',
     'sphinxext.mock_gui_toolkits',
     'sphinxext.skip_deprecated',
     'sphinx_copybutton',
@@ -93,18 +101,25 @@ os.environ.pop("DISPLAY", None)
 autosummary_generate = True
 
 autodoc_docstring_signature = True
-if sphinx.version_info < (1, 8):
-    autodoc_default_flags = ['members', 'undoc-members']
-else:
-    autodoc_default_options = {'members': None, 'undoc-members': None}
+autodoc_default_options = {'members': None, 'undoc-members': None}
+
+# missing-references names matches sphinx>=3 behavior, so we can't be nitpicky
+# for older sphinxes.
+nitpicky = sphinx.version_info >= (3,)
+# change this to True to update the allowed failures
+missing_references_write_json = False
+missing_references_warn_unused_ignores = False
 
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
-    'numpy': ('https://docs.scipy.org/doc/numpy/', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
-    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'Pillow': ('https://pillow.readthedocs.io/en/stable/', None),
     'cycler': ('https://matplotlib.org/cycler', None),
+    'dateutil': ('https://dateutil.readthedocs.io/en/stable/', None),
+    'ipykernel': ('https://ipykernel.readthedocs.io/en/latest/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    'pytest': ('https://pytest.org/en/stable', None),
+    'python': ('https://docs.python.org/3', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
 }
 
 
@@ -122,7 +137,10 @@ sphinx_gallery_conf = {
     'backreferences_dir': 'api/_as_gen',
     'subsection_order': gallery_order.sectionorder,
     'within_subsection_order': gallery_order.subsectionorder,
+    'remove_config_comments': True,
     'min_reported_time': 1,
+    'compress_images': ('thumbnails', 'images'),
+    'matplotlib_animations': True,
 }
 
 plot_gallery = 'True'
@@ -163,7 +181,7 @@ html_context = {'sha': SHA}
 project = 'Matplotlib'
 copyright = ('2002 - 2012 John Hunter, Darren Dale, Eric Firing, '
              'Michael Droettboom and the Matplotlib development '
-             'team; 2012 - 2018 The Matplotlib development team')
+             f'team; 2012 - {datetime.now().year} The Matplotlib development team')
 
 
 # The default replacements for |version| and |release|, also used in various
@@ -205,7 +223,7 @@ default_role = 'obj'
 
 plot_formats = [('png', 100), ('pdf', 100)]
 
-# Github extension
+# GitHub extension
 
 github_project_url = "https://github.com/matplotlib/matplotlib/"
 
@@ -216,7 +234,7 @@ github_project_url = "https://github.com/matplotlib/matplotlib/"
 # must exist either in Sphinx' static/ path, or in one of the custom paths
 # given in html_static_path.
 #html_style = 'matplotlib.css'
-html_style = 'mpl.css'
+html_style = f'mpl.css?{SHA}'
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -247,10 +265,11 @@ html_index = 'index.html'
 
 # Custom sidebar templates, maps page names to templates.
 html_sidebars = {
-    'index': ['searchbox.html', 'sidebar_announcement.html',
-              'donate_sidebar.html'],
-    '**': ['searchbox.html', 'localtoc.html', 'relations.html',
-           'pagesource.html']
+    'index': [
+        # 'sidebar_announcement.html',
+        'sidebar_versions.html',
+        'donate_sidebar.html'],
+    '**': ['localtoc.html', 'relations.html', 'pagesource.html']
 }
 
 # If false, no module index is generated.
@@ -284,8 +303,8 @@ latex_paper_size = 'letter'
 
 latex_documents = [
     ('contents', 'Matplotlib.tex', 'Matplotlib',
-     'John Hunter, Darren Dale, Eric Firing, Michael Droettboom and the '
-     'matplotlib development team', 'manual'),
+     'John Hunter\\and Darren Dale\\and Eric Firing\\and Michael Droettboom'
+     '\\and and the matplotlib development team', 'manual'),
 ]
 
 
@@ -296,6 +315,9 @@ latex_logo = None
 latex_elements = {}
 # Additional stuff for the LaTeX preamble.
 latex_elements['preamble'] = r"""
+   % One line per author on title page
+   \DeclareRobustCommand{\and}%
+     {\end{tabular}\kern-\tabcolsep\\\begin{tabular}[t]{c}}%
    % In the parameters section, place a newline after the Parameters
    % header.  (This is stolen directly from Numpy's conf.py, since it
    % affects Numpy-style docstrings).
@@ -323,10 +345,7 @@ latex_appendices = []
 # If false, no module index is generated.
 latex_use_modindex = True
 
-if hasattr(sphinx, 'version_info') and sphinx.version_info[:2] >= (1, 4):
-    latex_toplevel_sectioning = 'part'
-else:
-    latex_use_parts = True
+latex_toplevel_sectioning = 'part'
 
 # Show both class-level docstring and __init__ docstring in class
 # documentation
@@ -350,3 +369,18 @@ latex_elements = {
     'babel': r'\usepackage{babel}',
     'fontpkg': r'\setmainfont{DejaVu Serif}',
 }
+
+html4_writer = True
+
+inheritance_node_attrs = dict(fontsize=16)
+
+graphviz_dot = shutil.which('dot')
+graphviz_output_format = 'svg'
+
+
+def setup(app):
+    if any(st in version for st in ('post', 'alpha', 'beta')):
+        bld_type = 'dev'
+    else:
+        bld_type = 'rel'
+    app.add_config_value('releaselevel', bld_type, 'env')

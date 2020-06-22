@@ -7,11 +7,11 @@ from types import SimpleNamespace
 
 import numpy as np
 
+import matplotlib as mpl
 from matplotlib.path import Path
 from matplotlib.patches import PathPatch
 from matplotlib.transforms import Affine2D
 from matplotlib import docstring
-from matplotlib import rcParams
 
 _log = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ UP = 1
 DOWN = 3
 
 
-class Sankey(object):
+class Sankey:
     """
     Sankey diagram.
 
@@ -109,15 +109,14 @@ class Sankey(object):
 
             Sankey().add().add...  .add().finish()
 
-        .. seealso::
+        See Also
+        --------
+        Sankey.add
+        Sankey.finish
 
-            :meth:`add`
-            :meth:`finish`
-
-
-        **Examples:**
-
-            .. plot:: gallery/specialty_plots/sankey_basics.py
+        Examples
+        --------
+        .. plot:: gallery/specialty_plots/sankey_basics.py
         """
         # Check the arguments.
         if gap < 0:
@@ -190,7 +189,7 @@ class Sankey(object):
                      Path.CURVE4,
                      Path.CURVE4]
         # Vertices of a cubic Bezier curve approximating a 90 deg arc
-        # These can be determined by Path.arc(0,90).
+        # These can be determined by Path.arc(0, 90).
         ARC_VERTICES = np.array([[1.00000000e+00, 0.00000000e+00],
                                  [1.00000000e+00, 2.65114773e-01],
                                  [8.94571235e-01, 5.19642327e-01],
@@ -464,7 +463,7 @@ class Sankey(object):
             raise ValueError(
                 "'trunklength' is negative, which is not allowed because it "
                 "would cause poor layout")
-        if np.abs(np.sum(flows)) > self.tolerance:
+        if abs(np.sum(flows)) > self.tolerance:
             _log.info("The sum of the flows is nonzero (%f; patchlabel=%r); "
                       "is the system not at steady state?",
                       np.sum(flows), patchlabel)
@@ -719,7 +718,7 @@ class Sankey(object):
             vertices = translate(rotate(vertices))
             kwds = dict(s=patchlabel, ha='center', va='center')
             text = self.ax.text(*offset, **kwds)
-        if rcParams['_internal.classic_mode']:
+        if mpl.rcParams['_internal.classic_mode']:
             fc = kwargs.pop('fc', kwargs.pop('facecolor', '#bfd1d4'))
             lw = kwargs.pop('lw', kwargs.pop('linewidth', 0.5))
         else:
@@ -807,9 +806,9 @@ class Sankey(object):
                             for the labels of flows
           ===============   ===================================================
 
-        .. seealso::
-
-            :meth:`add`
+        See Also
+        --------
+        Sankey.add
         """
         self.ax.axis([self.extent[0] - self.margin,
                       self.extent[1] + self.margin,
